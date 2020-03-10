@@ -83,7 +83,14 @@ class Game:
         self.tk.after(1000, self.tick)
 
     def new_game(self):
-        pass
+        self.time.set(0)
+        self.mode.set("Exposing")
+        self.remaining = 25
+        
+        for column in self.grid:
+            for square in column:
+                square.state = DUNNO
+                square.flagged = False
 
     def refresh(self):
         self.tk.update()
