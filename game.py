@@ -1,6 +1,6 @@
 from tkinter import *
 from tkinter import messagebox
-from random import random
+from random import randrange
 from time import sleep
 
 PLAY = 0
@@ -10,10 +10,23 @@ WIN = 2
 DUNNO = 0
 FLAGGED = 1
 EXPOSED = 2
+
+EMPTY = 0
+NUMBER = 1
 BOMB = 2
 
-charsetmap = (u"\u2690", u"\u2691", u"\u26a0")
-colormap = ("#00c000", "#ff8800", "#ff0000")
+RED = "#ff0000"
+ORANGE = "#ff8800"
+GREEN = "#00c000"
+LIGHT_GRAY = "#e7e7e7"
+BLACK = "#000000"
+
+DUNNO_SYMBOL = u"\u2690"
+FLAGGED_SYMBOL = u"\u2691"
+BOMB_SYMBOL = u"\u26a0"
+
+charsetmap = [DUNNO_SYMBOL, FLAGGED_SYMBOL]
+colormap = [GREEN, ORANGE]
 
 class Game:
     def __init__(self):
@@ -51,6 +64,17 @@ class Game:
 
         self.button = Button(self.tk, padx=10, pady=10, text="New Game", font=("Arial", 18), command=self.new_game)
         self.button.place(x=225, y=25)
+
+        self.grid = [[Square(self, x*75, y*75) for y in range(0, 10)] \
+                                               for x in range(0, 10)]
+
+        for i in range(0, 25):
+            random_square = self.grid[randrange(0, 10)][randrange(0, 10)]
+
+            while random_square.type != EMPTY:
+                random_square = self.grid[randrange(0, 10)][randrange(0, 10)]
+                
+            random_square.type = BOMB
 
         self.refresh()
 
@@ -119,11 +143,12 @@ class Square:
 
         self.state = DUNNO
         self.flagged = False
+        self.type = EMPTY
 
         self.text = StringVar()
         self.text.set(charsetmap[self.state])
 
-        self.square = Button(self.game.tk, padx=23, pady=20, bg="#e7e7e7", fg="#000000", font=("Arial", 18),
+        self.square = Button(self.game.tk, padx=23, pady=20, bg=LIGHT_GRAY, fg=BLACK, font=("Arial", 18),
                              textvariable=self.text, command=self.callback)
         self.square.place(x=x+1, y=y+101)
 
@@ -143,15 +168,24 @@ class Square:
                 self.flagged = True
 
     def animate(self):
-        self.text.set(charsetmap[self.state])
-        self.square.config(fg=colormap[self.state])
-
-        if self.text.get() == charsetmap[BOMB]:
+        if self.type == BOMB and self.state == EXPOSED:
+            self.text.set(BOMB_SYMBOL)
+            self.square.config(fg=RED)
             self.game.state = DEAD
 
-g = Game()
+        elif self.state != EXPOSED:
+            self.text.set(charsetmap[self.state])
+            self.square.config(fg=colormap[self.state])
 
-g.grid = [[Square(g, x*75, y*75) for y in range(0, 10)] \
-                                 for x in range(0, 10)]
+        else:
+            if self.type == EMPTY:
+                self.text.set("  ")
+                self.square.config(fg=BLACK)
+
+            if self.type == NUMBER:
+                self.type.set("x")
+                self.square.config(fg=BLACK) #######
+
+g = Game()
 
 g.mainloop()
