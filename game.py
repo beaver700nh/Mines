@@ -121,7 +121,7 @@ class Square:
         self.square.place(x=x+1, y=y+101)
 
     def callback(self):
-        if self.game.mode.get() == "Exposing":
+        if self.game.mode.get() == "Exposing" and not self.flagged:
             self.state = EXPOSED
 
         elif self.game.mode.get() == "Flagging":
