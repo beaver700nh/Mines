@@ -25,6 +25,8 @@ DUNNO_SYMBOL = u"\u2690"
 FLAGGED_SYMBOL = u"\u2691"
 BOMB_SYMBOL = u"\u26a0"
 
+MYFONT = ("Courier", 18)
+
 charsetmap = [DUNNO_SYMBOL, FLAGGED_SYMBOL]
 colormap = [GREEN, ORANGE]
 
@@ -47,23 +49,25 @@ class Game:
         self.score = StringVar()
         self.score.set("00 / 25")
 
-        self.score_label = Label(self.tk, textvariable=self.score, padx=10, pady=10, font=("Arial", 18))
+        self.score_label = Label(self.tk, textvariable=self.score, padx=10, pady=10, font=MYFONT)
         self.score_label.place(x=25, y=25)
 
         self.time = IntVar()
         self.time.set(0)
 
-        self.time_label = Label(self.tk, textvariable=self.time, padx=10, pady=10, font=("Arial", 18))
+        self.time_label = Label(self.tk, textvariable=self.time, padx=10, pady=10, font=MYFONT)
         self.time_label.place(x=650, y=25)
 
         self.mode = StringVar()
         self.mode.set("Exposing")
 
-        self.mode_label = Label(self.tk, textvariable=self.mode, padx=10, pady=10, font=("Arial", 18))
+        self.mode_label = Label(self.tk, textvariable=self.mode, padx=10, pady=10, font=MYFONT)
         self.mode_label.place(x=425, y=25)
 
-        self.button = Button(self.tk, padx=10, pady=10, text="New Game", font=("Arial", 18), command=self.new_game)
+        self.button = Button(self.tk, padx=10, pady=10, text="New Game", font=MYFONT, command=self.new_game)
         self.button.place(x=225, y=25)
+
+        ## access using self.grid[x][y] where 0 < x < 10 and 0 < y < 10
 
         self.grid = [[Square(self, x*75, y*75) for y in range(0, 10)] \
                                                for x in range(0, 10)]
@@ -148,7 +152,7 @@ class Square:
         self.text = StringVar()
         self.text.set(charsetmap[self.state])
 
-        self.square = Button(self.game.tk, padx=23, pady=20, bg=LIGHT_GRAY, fg=BLACK, font=("Arial", 18),
+        self.square = Button(self.game.tk, padx=27, pady=20, bg=LIGHT_GRAY, fg=BLACK, font=MYFONT,
                              textvariable=self.text, command=self.callback)
         self.square.place(x=x+1, y=y+101)
 
@@ -179,12 +183,26 @@ class Square:
 
         else:
             if self.type == EMPTY:
-                self.text.set("  ")
+                self.text.set(" ")
                 self.square.config(fg=BLACK)
 
             if self.type == NUMBER:
-                self.type.set("x")
+                self.text.set(str(self.check_around()))
                 self.square.config(fg=BLACK) #######
+
+    def check_around(self):
+        bombs_next_to_me = 0
+        squares_to_check = [(x-1, y-0), (x-1, y-1), (x-0, y-1), (x+1, y-1), \
+                            (x+1, y+0), (x+1, y+1), (x+0, y+1), (x-1, y+1)]
+
+        for x_other, y_other in squares_to_check:
+            if self.game.grid[x_other][y_other].type == BOMB:
+                bombs_next_to_me += 1
+
+        if bombs_next_to_me != 0:
+            self.type = NUMBER
+
+        return bombs_next_to_me
 
 g = Game()
 
