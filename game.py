@@ -13,7 +13,7 @@ EXPOSED = 2
 
 EMPTY = 0
 NUMBER = 1
-BOMB = 2
+MINE = 2
 
 RED = "#ff0000"
 ORANGE = "#ff8800"
@@ -21,13 +21,8 @@ GREEN = "#00c000"
 LIGHT_GRAY = "#e7e7e7"
 BLACK = "#000000"
 
-DUNNO_SYMBOL = u"\u2690"
-FLAGGED_SYMBOL = u"\u2691"
-BOMB_SYMBOL = u"\u26a0"
-
 MYFONT = ("Courier", 18)
 
-charsetmap = [DUNNO_SYMBOL, FLAGGED_SYMBOL]
 colormap = [GREEN, ORANGE]
 
 class Game:
@@ -50,27 +45,33 @@ class Game:
         self.score.set("00 / 25")
 
         self.score_label = Label(self.tk, textvariable=self.score, padx=10, pady=10, font=MYFONT)
-        self.score_label.place(x=25, y=25)
+        self.score_label.grid(row=0, column=0)
 
         self.time = IntVar()
         self.time.set(0)
 
         self.time_label = Label(self.tk, textvariable=self.time, padx=10, pady=10, font=MYFONT)
-        self.time_label.place(x=650, y=25)
+        self.time_label.grid(row=0, column=8)
 
         self.mode = StringVar()
         self.mode.set("Exposing")
 
         self.mode_label = Label(self.tk, textvariable=self.mode, padx=10, pady=10, font=MYFONT)
-        self.mode_label.place(x=425, y=25)
+        self.mode_label.grid(row=0, column=5)
 
         self.button = Button(self.tk, padx=10, pady=10, text="New Game", font=MYFONT, command=self.new_game)
-        self.button.place(x=225, y=25)
+        self.button.grid(row=0, column=2)
+
+        self.flagged_image = PhotoImage(file="./images/flagged.gif")
+        self.dunno_image = PhotoImage(file="./images/dunno.gif")
+        self.blank_image = PhotoImage(file="./images/blank.gif")
+        self.mine_image = PhotoImage(file="./images/mine.gif")
+        self.number_image = [PhotoImage(file="./images/number{0}.gif".format(i)) for i in range(1, 9)]
 
         ## access using self.grid[x][y] where 0 < x < 10 and 0 < y < 10
 
-        self.grid = [[Square(self, x*75, y*75) for y in range(0, 10)] \
-                                               for x in range(0, 10)]
+        self.grid = [[Square(self, x+1, y) for y in range(0, 10)] \
+                                           for x in range(0, 10)]
 
         for i in range(0, 25):
             random_square = self.grid[randrange(0, 10)][randrange(0, 10)]
@@ -78,11 +79,11 @@ class Game:
             while random_square.type != EMPTY:
                 random_square = self.grid[randrange(0, 10)][randrange(0, 10)]
                 
-            random_square.type = BOMB
+            random_square.type = MINE
 
         self.refresh()
 
-        self.tk.bind_all("<Escape>", self.end)
+        self.tk.bind_all("q", self.end)
         self.tk.bind_all("<question>", self.info)
         self.tk.bind_all("m", self.toggle_mode)
 
@@ -149,12 +150,25 @@ class Square:
         self.flagged = False
         self.type = EMPTY
 
-        self.text = StringVar()
-        self.text.set(charsetmap[self.state])
+        self.square = Button(self.game.tk, bg=LIGHT_GRAY, fg=BLACK, font=MYFONT,
+                             image=self.game.dunno_image, command=self.callback)
+        self.square.grid(row=x, column=y)
 
-        self.square = Button(self.game.tk, padx=27, pady=20, bg=LIGHT_GRAY, fg=BLACK, font=MYFONT,
-                             textvariable=self.text, command=self.callback)
-        self.square.place(x=x+1, y=y+101)
+        self.bombs_around_me = 0
+
+        squares_to_check = [(x-1, y-0), (x-1, y-1), (x-0, y-1), (x+1, y-1), \
+                            (x+1, y+0), (x+1, y+1), (x+0, y+1), (x-1, y+1)]
+
+        for x_other, y_other in squares_to_check:
+            try:
+                if self.game.grid[x_other][y_other].type == MINE:
+                    self.bombs_around_me += 1
+
+            except IndexError:
+                pass
+
+        if self.bombs_around_me != 0:
+            self.type = NUMBER
 
     def callback(self):
         if self.game.mode.get() == "Exposing" and not self.flagged:
@@ -172,37 +186,22 @@ class Square:
                 self.flagged = True
 
     def animate(self):
-        if self.type == BOMB and self.state == EXPOSED:
-            self.text.set(BOMB_SYMBOL)
-            self.square.config(fg=RED)
-            self.game.state = DEAD
+        if self.state == EXPOSED:
+            if self.type == MINE:
+                self.square.config(image=self.game.mine_image)
+                self.game.state = DEAD
 
-        elif self.state != EXPOSED:
-            self.text.set(charsetmap[self.state])
-            self.square.config(fg=colormap[self.state])
+            elif self.type == EMPTY:
+                self.square.config(image=self.game.blank_image)
+
+            elif self.type == NUMBER:
+                self.square.config(image=self.game.number_image[self.bombs_around_me])
+
+        elif self.state == FLAGGED:
+            self.square.config(image=self.game.flagged_image)
 
         else:
-            if self.type == EMPTY:
-                self.text.set(" ")
-                self.square.config(fg=BLACK)
-
-            if self.type == NUMBER:
-                self.text.set(str(self.check_around()))
-                self.square.config(fg=BLACK) #######
-
-    def check_around(self):
-        bombs_next_to_me = 0
-        squares_to_check = [(x-1, y-0), (x-1, y-1), (x-0, y-1), (x+1, y-1), \
-                            (x+1, y+0), (x+1, y+1), (x+0, y+1), (x-1, y+1)]
-
-        for x_other, y_other in squares_to_check:
-            if self.game.grid[x_other][y_other].type == BOMB:
-                bombs_next_to_me += 1
-
-        if bombs_next_to_me != 0:
-            self.type = NUMBER
-
-        return bombs_next_to_me
+            self.square.config(image=self.game.dunno_image)
 
 g = Game()
 
