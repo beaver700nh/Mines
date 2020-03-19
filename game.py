@@ -32,11 +32,6 @@ class Game:
         self.tk.resizable(0, 0)
         self.tk.wm_attributes("-topmost", 1)
 
-        temp_x = int(self.tk.winfo_screenwidth() / 2 - 375)
-        temp_y = int(self.tk.winfo_screenheight() / 2 - 425)
-
-        self.tk.geometry("750x850+{0}+{1}".format(temp_x, temp_y))
-
         self.state = PLAY
         self.grid = []
         self.remaining = 25
@@ -45,22 +40,21 @@ class Game:
         self.score.set("00 / 25")
 
         self.score_label = Label(self.tk, textvariable=self.score, padx=10, pady=10, font=MYFONT)
-        self.score_label.grid(row=0, column=0)
+        self.score_label.grid(row=0, column=0, columnspan=3, sticky=N+E+W+S)
 
         self.time = IntVar()
         self.time.set(0)
 
         self.time_label = Label(self.tk, textvariable=self.time, padx=10, pady=10, font=MYFONT)
-        self.time_label.grid(row=0, column=8)
-
-        self.mode = StringVar()
-        self.mode.set("Exposing")
-
-        self.mode_label = Label(self.tk, textvariable=self.mode, padx=10, pady=10, font=MYFONT)
-        self.mode_label.grid(row=0, column=5)
+        self.time_label.grid(row=0, column=7, columnspan=3, sticky=N+E+W+S)
 
         self.button = Button(self.tk, padx=10, pady=10, text="New Game", font=MYFONT, command=self.new_game)
-        self.button.grid(row=0, column=2)
+        self.button.grid(row=0, column=3, columnspan=4, sticky=N+E+W+S)
+
+        temp_x = int(self.tk.winfo_screenwidth() / 2 - 375)
+        temp_y = int(self.tk.winfo_screenheight() / 2 - 425)
+        
+        self.tk.geometry("+{0}+{1}".format(temp_x, temp_y))
 
         self.flagged_image = PhotoImage(file="./images/flagged.gif")
         self.dunno_image = PhotoImage(file="./images/dunno.gif")
@@ -85,7 +79,6 @@ class Game:
 
         self.tk.bind_all("q", self.end)
         self.tk.bind_all("<question>", self.info)
-        self.tk.bind_all("m", self.toggle_mode)
 
         self.tk.after(1000, self.tick)
 
@@ -94,17 +87,9 @@ class Game:
             self.tk.destroy()
 
     def info(self, *ignore):
-        messagebox.showinfo("Help", "In flagging mode, click once to flag, again to unflag.\n" \
-                                    "In exposing mode, click once to expose." \
-                                    "To change modes, type \"m\"." \
-                                    "Type ? for help. Type ESC to quit the game.")
-
-    def toggle_mode(self, *ignore):
-        if self.mode.get() == "Exposing":
-            self.mode.set("Flagging")
-
-        elif self.mode.get() == "Flagging":
-            self.mode.set("Exposing")
+        messagebox.showinfo("Help", "Right-click a tile to flag, again to unflag.\n" \
+                                    "Left-click a tile once to expose.\n" \
+                                    "Type ? for help. Type \"q\" to quit the game.")
 
     def tick(self):
         self.time.set(self.time.get() + 1)
@@ -151,7 +136,7 @@ class Square:
         self.type = EMPTY
 
         self.square = Button(self.game.tk, bg=LIGHT_GRAY, fg=BLACK, font=MYFONT,
-                             image=self.game.dunno_image, command=self.callback)
+                             width=60, height=60, image=self.game.dunno_image)
         self.square.grid(row=x, column=y)
 
         self.bombs_around_me = 0
@@ -170,20 +155,23 @@ class Square:
         if self.bombs_around_me != 0:
             self.type = NUMBER
 
-    def callback(self):
-        if self.game.mode.get() == "Exposing" and not self.flagged:
+        self.square.bind("<Button-1>", self.expose)
+        self.square.bind("<Button-3>", self.flag)
+
+    def expose(self, *ignore):
+        if not self.flagged:
             self.state = EXPOSED
 
-        elif self.game.mode.get() == "Flagging":
-            if self.flagged:
-                self.state = DUNNO
-                self.game.remaining += 1
-                self.flagged = False
+    def flag(self, *ignore):
+        if self.flagged:
+            self.state = DUNNO
+            self.game.remaining += 1
+            self.flagged = False
 
-            elif not self.flagged:
-                self.state = FLAGGED
-                self.game.remaining -= 1
-                self.flagged = True
+        elif self.game.remaining > 0 and not self.flagged:
+            self.state = FLAGGED
+            self.game.remaining -= 1
+            self.flagged = True
 
     def animate(self):
         if self.state == EXPOSED:
