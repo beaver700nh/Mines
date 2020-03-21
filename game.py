@@ -53,14 +53,14 @@ class Game:
 
         temp_x = int(self.tk.winfo_screenwidth() / 2 - 375)
         temp_y = int(self.tk.winfo_screenheight() / 2 - 425)
-        
+
         self.tk.geometry("+{0}+{1}".format(temp_x, temp_y))
 
-        self.flagged_image = PhotoImage(file="./images/flagged.gif")
-        self.dunno_image = PhotoImage(file="./images/dunno.gif")
-        self.blank_image = PhotoImage(file="./images/blank.gif")
-        self.mine_image = PhotoImage(file="./images/mine.gif")
-        self.number_image = [PhotoImage(file="./images/number{0}.gif".format(i)) for i in range(1, 9)]
+        self.flagged_image = PhotoImage(file="./Images/flagged.gif")
+        self.dunno_image = PhotoImage(file="./Images/dunno.gif")
+        self.blank_image = PhotoImage(file="./Images/blank.gif")
+        self.mine_image = PhotoImage(file="./Images/mine.gif")
+        self.number_image = [PhotoImage(file="./Images/number{0}.gif".format(i)) for i in range(1, 9)]
 
         ## access using self.grid[x][y] where 0 < x < 10 and 0 < y < 10
 
@@ -72,8 +72,12 @@ class Game:
 
             while random_square.type != EMPTY:
                 random_square = self.grid[randrange(0, 10)][randrange(0, 10)]
-                
+
             random_square.type = MINE
+
+        for column in self.grid:
+            for square in column:
+                square.check_neighbors()
 
         self.refresh()
 
@@ -89,7 +93,7 @@ class Game:
     def info(self, *ignore):
         messagebox.showinfo("Help", "Right-click a tile to flag, again to unflag.\n" \
                                     "Left-click a tile once to expose.\n" \
-                                    "Type ? for help. Type \"q\" to quit the game.")
+                                    "Type ? for help. Type q to quit the game.")
 
     def tick(self):
         self.time.set(self.time.get() + 1)
@@ -98,9 +102,8 @@ class Game:
 
     def new_game(self):
         self.time.set(0)
-        self.mode.set("Exposing")
         self.remaining = 25
-        
+
         for column in self.grid:
             for square in column:
                 square.state = DUNNO
@@ -139,24 +142,28 @@ class Square:
                              width=60, height=60, image=self.game.dunno_image)
         self.square.grid(row=x, column=y)
 
-        self.bombs_around_me = 0
+        self.mines_around_me = 0
 
-        squares_to_check = [(x-1, y-0), (x-1, y-1), (x-0, y-1), (x+1, y-1), \
-                            (x+1, y+0), (x+1, y+1), (x+0, y+1), (x-1, y+1)]
+        self.neighbors = [(x-1, y-0), (x-1, y-1), (x-0, y-1), (x+1, y-1), \
+                          (x+1, y+0), (x+1, y+1), (x+0, y+1), (x-1, y+1)]
 
-        for x_other, y_other in squares_to_check:
+        self.square.bind("<Button-1>", self.expose)
+        self.square.bind("<Button-3>", self.flag)
+
+    def check_neighbors(self):
+        if self.type == MINE:
+            return
+
+        for neighbor_x, neighbor_y in self.neighbors:
             try:
-                if self.game.grid[x_other][y_other].type == MINE:
-                    self.bombs_around_me += 1
+                if self.game.grid[neighbor_x][neighbor_y].type == MINE:
+                    self.mines_around_me += 1
 
             except IndexError:
                 pass
 
-        if self.bombs_around_me != 0:
+        if self.mines_around_me != 0:
             self.type = NUMBER
-
-        self.square.bind("<Button-1>", self.expose)
-        self.square.bind("<Button-3>", self.flag)
 
     def expose(self, *ignore):
         if not self.flagged:
@@ -183,7 +190,7 @@ class Square:
                 self.square.config(image=self.game.blank_image)
 
             elif self.type == NUMBER:
-                self.square.config(image=self.game.number_image[self.bombs_around_me])
+                self.square.config(image=self.game.number_image[self.mines_around_me])
 
         elif self.state == FLAGGED:
             self.square.config(image=self.game.flagged_image)
