@@ -10,6 +10,6 @@ As of this writing, the game has been tested on Raspbian 9 (Stretch), Ubuntu 18.
 * "q" for quit
 
 # TODO:
-* Fix problem with wrong square type
+* Fix problem with wrong square type, wrong numbers
 
 Last edited on 3/21/2020
