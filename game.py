@@ -33,7 +33,7 @@ class Game:
         self.tk.wm_attributes("-topmost", 1)
 
         self.state = PLAY
-        self.grid = []
+        self.board = []
         self.remaining = 25
 
         self.score = StringVar()
@@ -51,8 +51,8 @@ class Game:
         self.button = Button(self.tk, padx=10, pady=10, text="New Game", font=MYFONT, command=self.new_game)
         self.button.grid(row=0, column=3, columnspan=4, sticky=N+E+W+S)
 
-        temp_x = int(self.tk.winfo_screenwidth() / 2 - 375)
-        temp_y = int(self.tk.winfo_screenheight() / 2 - 425)
+        temp_x = self.tk.winfo_screenwidth() // 2 - 375
+        temp_y = self.tk.winfo_screenheight() // 2 - 425
 
         self.tk.geometry("+{0}+{1}".format(temp_x, temp_y))
 
@@ -62,22 +62,35 @@ class Game:
         self.mine_image = PhotoImage(file="./Images/mine.gif")
         self.number_image = [PhotoImage(file="./Images/number{0}.gif".format(i)) for i in range(1, 9)]
 
-        ## access using self.grid[x][y] where 0 < x < 10 and 0 < y < 10
+        ## access using self.board[row][col] where 0 < row < 10 and 0 < col < 10
 
-        self.grid = [[Square(self, x+1, y) for y in range(0, 10)] \
-                                           for x in range(0, 10)]
+        self.board = [[Tile(self, col+1, row) for row in range(0, 5)] \
+                                              for col in range(0, 5)]
 
-        for i in range(0, 25):
-            random_square = self.grid[randrange(0, 10)][randrange(0, 10)]
+        for i in range(0, 5):
+            random_tile = self.board[randrange(0, 5)][randrange(0, 5)]
 
-            while random_square.type != EMPTY:
-                random_square = self.grid[randrange(0, 10)][randrange(0, 10)]
+            while random_tile.type != EMPTY:
+                random_tile = self.board[randrange(0, 5)][randrange(0, 5)]
 
-            random_square.type = MINE
+            random_tile.type = MINE
 
-        for column in self.grid:
-            for square in column:
-                square.check_neighbors()
+        for row in self.board:
+            for tile in row:
+                tile.check_neighbors()
+
+        for row in self.board:
+            for tile in row:
+                if tile.type == MINE:
+                    print("o", end=" ")
+
+                elif tile.type == NUMBER:
+                    print("#", end=" ")
+
+                elif tile.type == EMPTY:
+                    print("-", end=" ")
+
+            print("\n")
 
         self.refresh()
 
@@ -104,10 +117,11 @@ class Game:
         self.time.set(0)
         self.remaining = 25
 
-        for column in self.grid:
-            for square in column:
-                square.state = DUNNO
-                square.flagged = False
+        for row in self.board:
+            for tile in row:
+                tile.state = DUNNO
+                tile.flagged = False
+                tile.tile.config(relief=RAISED)
 
     def refresh(self):
         self.tk.update()
@@ -115,9 +129,9 @@ class Game:
 
     def mainloop(self):
         while self.state == PLAY:
-            for column in self.grid:
-                for square in column:
-                    square.animate()
+            for row in self.board:
+                for tile in row:
+                    tile.animate()
 
             self.score.set("{0:02} / 25".format(25 - self.remaining))
 
@@ -130,34 +144,39 @@ class Game:
         elif self.state == WIN:
             messagebox.showinfo("You Won", "You won! Very nice job!")
 
-class Square:
-    def __init__(self, game, x, y):
+class Tile:
+    def __init__(self, game, col, row):
         self.game = game
 
         self.state = DUNNO
         self.flagged = False
         self.type = EMPTY
 
-        self.square = Button(self.game.tk, bg=LIGHT_GRAY, fg=BLACK, font=MYFONT,
-                             width=60, height=60, image=self.game.dunno_image)
-        self.square.grid(row=x, column=y)
+        self._location = (row, col)
+
+        self.tile = Label(self.game.tk, bg=LIGHT_GRAY, fg=BLACK, font=MYFONT, relief=RAISED,
+                          width=60, height=60, image=self.game.dunno_image)
+        self.tile.grid(row=row, column=col)
 
         self.mines_around_me = 0
 
-        self.neighbors = [(x-1, y-0), (x-1, y-1), (x-0, y-1), (x+1, y-1), \
-                          (x+1, y+0), (x+1, y+1), (x+0, y+1), (x-1, y+1)]
+        self.neighbors = [(row-0, col-1), (row-1, col-1), (row-1, col-0), (row-1, col+1), \
+                          (row+0, col+1), (row+1, col+1), (row+1, col+0), (row+1, col-1)]
 
-        self.square.bind("<Button-1>", self.expose)
-        self.square.bind("<Button-3>", self.flag)
+        self.tile.bind("<Button-1>", self.expose)
+        self.tile.bind("<Button-3>", self.flag)
 
     def check_neighbors(self):
+        print("Checking tile at row: {0[0]}, col: {0[1]}".format(self._location))
+
         if self.type == MINE:
             return
 
-        for neighbor_x, neighbor_y in self.neighbors:
+        for neighbor_row, neighbor_col in self.neighbors:
             try:
-                if self.game.grid[neighbor_x][neighbor_y].type == MINE:
+                if self.game.board[neighbor_row][neighbor_col].type == MINE:
                     self.mines_around_me += 1
+                    print("Found mine at row: {0}, col: {1}".format(neighbor_row, neighbor_col))
 
             except IndexError:
                 pass
@@ -165,9 +184,12 @@ class Square:
         if self.mines_around_me != 0:
             self.type = NUMBER
 
+        print("Found {0} mines total\n".format(self.mines_around_me))
+
     def expose(self, *ignore):
         if not self.flagged:
             self.state = EXPOSED
+            self.tile.config(relief=FLAT)
 
     def flag(self, *ignore):
         if self.flagged:
@@ -183,20 +205,20 @@ class Square:
     def animate(self):
         if self.state == EXPOSED:
             if self.type == MINE:
-                self.square.config(image=self.game.mine_image)
+                self.tile.config(image=self.game.mine_image)
                 self.game.state = DEAD
 
             elif self.type == EMPTY:
-                self.square.config(image=self.game.blank_image)
+                self.tile.config(image=self.game.blank_image)
 
             elif self.type == NUMBER:
-                self.square.config(image=self.game.number_image[self.mines_around_me])
+                self.tile.config(image=self.game.number_image[self.mines_around_me])
 
         elif self.state == FLAGGED:
-            self.square.config(image=self.game.flagged_image)
+            self.tile.config(image=self.game.flagged_image)
 
         else:
-            self.square.config(image=self.game.dunno_image)
+            self.tile.config(image=self.game.dunno_image)
 
 g = Game()
 
